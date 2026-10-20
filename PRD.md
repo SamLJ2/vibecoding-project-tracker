@@ -167,18 +167,42 @@ The hackathon is "done" when all 13 milestone tags are pushed to your repo and v
 ## 14. Requirements 
 
 ### functional Requirements
-— Task Management: The system shall allow users to create, view, edit and delete tasks containing a title, description, type, status, assignee and due date.
-— Kanban Board: The system shall display tasks in four columns: To Do, In Progress, Review and Done, allowing users to update task statuses.
-— Task Assignment and Prioritisation: The system shall allow users to assign tasks to one of three predefined team members and visually identify task types and due-date urgency.
-— Prompt Context: The system shall allow users to save and update AI prompt context for each task and copy the task details and context as structured Markdown for reuse in AI tools.
-— Deliverable Anchor Board: The system shall provide four pinned deliverable slots for Presentation, Demo, Report and Documentation, allowing users to save and update links.
-— Data Persistence and Validation: The system shall save tasks and deliverable links in browser localStorage, restore them after refresh, and validate required inputs.
+- Users can add, edit and delete tasks.
+- Users can move tasks between the four Kanban columns.
+- Users can assign tasks to team members.
+- Feature and bug tasks use different colours.
+- Overdue tasks are highlighted in red.
+- Users can save AI prompt context to each task.
+- Users can copy task details and prompt context as Markdown.
+- Users can add links to the four project deliverables.
+- Tasks and deliverable links are saved in localStorage.
+- Required task fields cannot be left empty.
 
 ### Non-Functional Requirements 
-— Usability: The application shall provide a clear, consistent, and intuitive interface that users can understand with minimal guidance.
-— Performance and Reliability: The application shall respond promptly to normal user interactions and preserve saved data across refreshes, provided browser storage remains available.
-— Compatibility and Deployment: The application shall support modern desktop browsers and build successfully for deployment to Vercel.
-— Maintainability and Privacy: The application shall use reusable React components and the existing Vite and Tailwind CSS setup, without requiring accounts or transmitting task data to an external backend.
+- Text must be readable against the background.
+- Buttons must have clear labels and visible hover states.
+- The interface must use consistent colours, fonts and spacing.
+- The board must load without errors in modern desktop browsers.
+- Changes must appear promptly after user interactions.
+- Saved tasks must remain after refreshing the page.
+- The layout must keep task titles and details easy to read.
+- The application must use React, Vite and Tailwind CSS.
+- Task data must remain in browser localStorage.
+- The application must build and deploy successfully on Vercel.
+
+## 15. Data Requirements
+- Each task must have a unique ID.
+- Each task must store a title and description.
+- Each task must have a type: Feature or Bug.
+- Each task must have a status: To Do, In Progress, Review, or Done.
+- Each task must store an assignee.
+- Each task must store a creation date and an optional due date.
+- Each task must support optional AI prompt context.
+- Each task must store the selected AI tool when provided.
+- The system must store four deliverable links: Presentation, Demo, Report, and Documentation.
+- Task data and deliverable links must be stored in localStorage and restored when the page reloads.
+- Each task's prompt context must record its last-updated timestamp when saved.
+- Missing optional values must be stored consistently as null or an empty value, according to the defined data model.
 
 ---
 
