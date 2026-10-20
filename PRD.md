@@ -167,19 +167,18 @@ The hackathon is "done" when all 13 milestone tags are pushed to your repo and v
 ## 14. Requirements 
 
 ### functional Requirements
--
--
--
--
--
--
-### Non-Functional Requirements 
--
--
--
--
--
+— Task Management: The system shall allow users to create, view, edit and delete tasks containing a title, description, type, status, assignee and due date.
+— Kanban Board: The system shall display tasks in four columns: To Do, In Progress, Review and Done, allowing users to update task statuses.
+— Task Assignment and Prioritisation: The system shall allow users to assign tasks to one of three predefined team members and visually identify task types and due-date urgency.
+— Prompt Context: The system shall allow users to save and update AI prompt context for each task and copy the task details and context as structured Markdown for reuse in AI tools.
+— Deliverable Anchor Board: The system shall provide four pinned deliverable slots for Presentation, Demo, Report and Documentation, allowing users to save and update links.
+— Data Persistence and Validation: The system shall save tasks and deliverable links in browser localStorage, restore them after refresh, and validate required inputs.
 
+### Non-Functional Requirements 
+— Usability: The application shall provide a clear, consistent, and intuitive interface that users can understand with minimal guidance.
+— Performance and Reliability: The application shall respond promptly to normal user interactions and preserve saved data across refreshes, provided browser storage remains available.
+— Compatibility and Deployment: The application shall support modern desktop browsers and build successfully for deployment to Vercel.
+— Maintainability and Privacy: The application shall use reusable React components and the existing Vite and Tailwind CSS setup, without requiring accounts or transmitting task data to an external backend.
 
 ---
 
