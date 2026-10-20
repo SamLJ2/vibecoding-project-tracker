@@ -164,6 +164,23 @@ The hackathon is "done" when all 13 milestone tags are pushed to your repo and v
 - The "Copy as Prompt Context" demo works on stage.
 - 5 min pitch is rehearsed.
 
+## 14. Requirements 
+
+### functional Requirements
+-
+-
+-
+-
+-
+-
+### Non-Functional Requirements 
+-
+-
+-
+-
+-
+
+
 ---
 
 *PRD version: hackathon-starter v1 · maintained by Prof. Dr. Ignacio Alvarez*
