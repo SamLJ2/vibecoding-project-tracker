@@ -146,6 +146,69 @@ function Field({ label, htmlFor, children }) {
   );
 }
 
+// M6: one source of truth for how feature vs. bug look everywhere.
+const TYPE_STYLES = {
+  feature: {
+    label: 'Feature',
+    stripe: 'border-l-type-feature',
+    top: 'border-t-type-feature',
+    text: 'text-type-feature',
+    bg: 'bg-type-feature/10',
+  },
+  bug: {
+    label: 'Bug',
+    stripe: 'border-l-type-bug',
+    top: 'border-t-type-bug',
+    text: 'text-type-bug',
+    bg: 'bg-type-bug/10',
+  },
+};
+
+function TypeIcon({ type, className = 'h-3.5 w-3.5' }) {
+  const common = {
+    xmlns: 'http://www.w3.org/2000/svg',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    className,
+    'aria-hidden': true,
+  };
+  return type === 'bug' ? (
+    <svg {...common}>
+      <path d="m8 2 1.88 1.88" />
+      <path d="M14.12 3.88 16 2" />
+      <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" />
+      <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6" />
+      <path d="M12 20v-9" />
+      <path d="M6.53 9C4.6 8.8 3 7.1 3 5" />
+      <path d="M6 13H2" />
+      <path d="M3 21c0-2.1 1.7-3.9 3.8-4" />
+      <path d="M20.97 5c0 2.1-1.6 3.8-3.5 4" />
+      <path d="M22 13h-4" />
+      <path d="M17.2 17c2.1.1 3.8 1.9 3.8 4" />
+    </svg>
+  ) : (
+    <svg {...common}>
+      <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+    </svg>
+  );
+}
+
+function TypeBadge({ type }) {
+  const t = TYPE_STYLES[type];
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-mono text-xs ${t.bg} ${t.text}`}
+    >
+      <TypeIcon type={type} />
+      {t.label}
+    </span>
+  );
+}
+
 function TaskModal({ task, isNew, onSave, onDelete, onClose }) {
   const [form, setForm] = useState(task);
   const [error, setError] = useState('');
@@ -185,11 +248,14 @@ function TaskModal({ task, isNew, onSave, onDelete, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-label={isNew ? 'New task' : 'Edit task'}
-        className="max-h-full w-full max-w-lg overflow-y-auto rounded-lg bg-surface-card p-6 shadow-xl"
+        className={`max-h-full w-full max-w-lg overflow-y-auto rounded-lg border-t-4 ${TYPE_STYLES[form.type].top} bg-surface-card p-6 shadow-xl`}
       >
-        <h2 className="mb-4 font-heading text-lg font-semibold text-text-primary">
-          {isNew ? 'New task' : 'Edit task'}
-        </h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-heading text-lg font-semibold text-text-primary">
+            {isNew ? 'New task' : 'Edit task'}
+          </h2>
+          <TypeBadge type={form.type} />
+        </div>
 
         <div className="space-y-4">
           <Field label="Title" htmlFor="task-title">
@@ -289,16 +355,18 @@ function TaskModal({ task, isNew, onSave, onDelete, onClose }) {
 }
 
 function TaskCard({ task, onOpen }) {
-  // M6 will add the type icon; for now the stripe color carries type.
-  const stripe = task.type === 'bug' ? 'border-l-type-bug' : 'border-l-type-feature';
+  const t = TYPE_STYLES[task.type];
 
   return (
     <button
       type="button"
       onClick={() => onOpen(task.id)}
-      className={`w-full rounded-md border border-stone-200 border-l-4 ${stripe} bg-surface-card p-3 text-left transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-primary/40`}
+      className={`w-full rounded-md border border-stone-200 border-l-4 ${t.stripe} bg-surface-card p-3 text-left transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-primary/40`}
     >
-      <h3 className="text-sm font-medium text-text-primary">{task.title}</h3>
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="text-sm font-medium text-text-primary">{task.title}</h3>
+        <TypeBadge type={task.type} />
+      </div>
       <p className="mt-2 text-xs text-text-muted">{task.assignee}</p>
     </button>
   );
