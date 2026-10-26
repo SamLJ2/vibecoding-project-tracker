@@ -638,6 +638,80 @@ function Column({ stage, tasks, today, flashId, onOpen, onCopy }) {
   );
 }
 
+// M11: the four pinned deliverables (PRD §5 Anchor model).
+const ANCHOR_DEFAULTS = [
+  { id: 'presentation', label: 'Presentation', url: null },
+  { id: 'demo', label: 'Demo', url: null },
+  { id: 'report', label: 'Report', url: null },
+  { id: 'documentation', label: 'Documentation', url: null },
+];
+
+function AnchorCard({ anchor, onChange }) {
+  const filled = Boolean(anchor.url);
+
+  // Add https:// when someone pastes a bare domain, so the link actually opens.
+  const normalize = () => {
+    if (anchor.url && !/^https?:\/\//i.test(anchor.url)) {
+      onChange(anchor.id, `https://${anchor.url}`);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-stone-200 bg-surface-card p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <label
+          htmlFor={`anchor-${anchor.id}`}
+          className="text-xs font-semibold uppercase text-text-primary"
+        >
+          {anchor.label}
+        </label>
+        <span className="flex items-center gap-1.5 text-xs text-text-muted">
+          <span
+            aria-hidden="true"
+            className={`h-2.5 w-2.5 rounded-full border ${
+              filled ? 'border-type-feature bg-type-feature' : 'border-stone-300 bg-transparent'
+            }`}
+          />
+          {filled ? 'Linked' : 'Empty'}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          id={`anchor-${anchor.id}`}
+          type="text"
+          inputMode="url"
+          placeholder="Paste link…"
+          className={fieldClass}
+          value={anchor.url || ''}
+          onChange={(e) => onChange(anchor.id, e.target.value.trim())}
+          onBlur={normalize}
+        />
+        {filled && (
+          <a
+            href={anchor.url}
+            target="_blank"
+            rel="noreferrer"
+            className="shrink-0 rounded px-2 py-1 text-xs font-medium text-brand-primary hover:bg-stone-100"
+          >
+            Open
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AnchorBoard({ anchors, onChange }) {
+  return (
+    <section aria-label="Deliverables" className="mx-auto grid max-w-7xl grid-cols-4 gap-4 px-6 pt-6">
+      {anchors.map((a) => (
+        <AnchorCard key={a.id} anchor={a} onChange={onChange} />
+      ))}
+    </section>
+  );
+}
+
 function Toast({ toast }) {
   if (!toast) return null;
   return (
@@ -654,6 +728,7 @@ function Toast({ toast }) {
 
 export default function App() {
   const [tasks, setTasks] = useLocalStorage('breadcrumb.tasks', SEED_TASKS);
+  const [anchors, setAnchors] = useLocalStorage('breadcrumb.anchors', ANCHOR_DEFAULTS);
   // null = closed, 'new' = adding, otherwise the id of the task being edited.
   const [openId, setOpenId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -670,6 +745,9 @@ export default function App() {
   const activeTask = isNew ? blankTask() : tasks.find((t) => t.id === openId);
 
   const closeModal = () => setOpenId(null);
+
+  const setAnchorUrl = (id, url) =>
+    setAnchors((prev) => prev.map((a) => (a.id === id ? { ...a, url: url || null } : a)));
 
   // Toast with a 200 ms fade (DESIGN.md §7).
   const showToast = (message) => {
@@ -719,6 +797,8 @@ export default function App() {
           + Task
         </button>
       </header>
+
+      <AnchorBoard anchors={anchors} onChange={setAnchorUrl} />
 
       <main className="mx-auto grid max-w-7xl grid-cols-4 gap-4 p-6">
         {STAGES.map((stage) => (
