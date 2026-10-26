@@ -101,6 +101,76 @@ const SEED_TASKS = [
 // ---------------------------------------------------------------
 // Components
 // ---------------------------------------------------------------
+// M9: starter template for new tasks' Context field.
+const CONTEXT_TEMPLATE = `## Background
+
+## Constraints
+
+## Tried so far
+
+## Pick up
+`;
+
+// M9: "2 h ago" style hint.
+function timeAgo(iso) {
+  const sec = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (sec < 60) return 'just now';
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr} h ago`;
+  return `${Math.round(hr / 24)} d ago`;
+}
+
+// M10: the Markdown briefing that gets copied. Reads as a natural message to an AI.
+function buildPromptContext(task) {
+  const stage = STAGES.find((st) => st.id === task.status)?.label ?? task.status;
+  const typeLabel = task.type === 'bug' ? 'Bug' : 'Feature';
+  return [
+    "I'm continuing work on a task from my project tracker. Here's the briefing.",
+    '',
+    `# ${task.title}`,
+    '',
+    `- **Type:** ${typeLabel}`,
+    `- **Status:** ${stage}`,
+    `- **Assignee:** ${task.assignee}`,
+    task.dueDate ? `- **Due:** ${task.dueDate}` : null,
+    task.contextTool ? `- **Last worked on in:** ${task.contextTool}` : null,
+    '',
+    '## Description',
+    '',
+    task.description.trim() || '_No description._',
+    '',
+    '## Context',
+    '',
+    task.context.trim() || '_No context written yet._',
+    '',
+    'Please read this briefing and help me continue from here.',
+  ]
+    .filter((line) => line !== null)
+    .join('\n');
+}
+
+// Clipboard with a fallback for browsers that block the async API.
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  }
+}
+
+const AI_TOOLS = ['Claude', 'ChatGPT', 'Cursor', 'Lovable', 'Replit', 'Other'];
+
 function Wordmark() {
   return (
     <h1 className="font-heading text-2xl font-semibold text-brand-primary">
@@ -126,7 +196,7 @@ function blankTask() {
     assignee: TEAM[0],
     dueDate: null,
     createdDate: todayISO(),
-    context: '',
+    context: CONTEXT_TEMPLATE,
     contextTool: null,
     contextUpdatedAt: null,
   };
@@ -153,14 +223,14 @@ const TYPE_STYLES = {
     stripe: 'border-l-type-feature',
     top: 'border-t-type-feature',
     text: 'text-type-feature',
-    bg: 'bg-type-feature/10',
+    border: 'border-type-feature',
   },
   bug: {
     label: 'Bug',
     stripe: 'border-l-type-bug',
     top: 'border-t-type-bug',
     text: 'text-type-bug',
-    bg: 'bg-type-bug/10',
+    border: 'border-type-bug',
   },
 };
 
@@ -201,7 +271,7 @@ function TypeBadge({ type }) {
   const t = TYPE_STYLES[type];
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-mono text-xs ${t.bg} ${t.text}`}
+      className={`inline-flex shrink-0 items-center gap-1 rounded border bg-white px-1.5 py-0.5 font-mono text-xs font-medium ${t.border} ${t.text}`}
     >
       <TypeIcon type={type} />
       {t.label}
@@ -209,7 +279,57 @@ function TypeBadge({ type }) {
   );
 }
 
-function TaskModal({ task, isNew, onSave, onDelete, onClose }) {
+// M7: initials avatar.
+function initials(name) {
+  return name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function Avatar({ name, muted = false }) {
+  return (
+    <span
+      title={name}
+      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${
+        muted ? 'bg-text-muted' : 'bg-brand-primary'
+      }`}
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
+// M8: due-date state. Compared by calendar day, so "today" means due today.
+//   done            -> neutral (always, even if it was overdue)
+//   before today    -> overdue
+//   today           -> warning (less than 24 hours left)
+//   later           -> safe
+function dueInfo(task, today) {
+  if (task.status === 'done' && !task.dueDate) return { state: 'neutral', label: null };
+  if (!task.dueDate) return { state: 'none', label: null };
+  const [y, m, d] = task.dueDate.split('-').map(Number);
+  const pretty = new Date(y, m - 1, d).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+  });
+  if (task.status === 'done') return { state: 'neutral', label: `Due ${pretty}` };
+  if (task.dueDate < today) return { state: 'overdue', label: `Overdue · ${pretty}` };
+  if (task.dueDate === today) return { state: 'warning', label: 'Due today' };
+  return { state: 'safe', label: `Due ${pretty}` };
+}
+
+const DUE_BG = {
+  none: 'bg-surface-card',
+  safe: 'bg-due-safe',
+  warning: 'bg-due-warning',
+  overdue: 'bg-due-overdue',
+  neutral: 'bg-due-neutral',
+};
+
+function TaskModal({ task, isNew, onSave, onDelete, onHandoff, onCopy, onClose }) {
   const [form, setForm] = useState(task);
   const [error, setError] = useState('');
   const titleRef = useRef(null);
@@ -224,6 +344,23 @@ function TaskModal({ task, isNew, onSave, onDelete, onClose }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // Clean the form and stamp contextUpdatedAt when the Context text changed.
+  const finalize = (f) => ({
+    ...f,
+    title: f.title.trim(),
+    dueDate: f.dueDate || null,
+    contextTool: f.contextTool || null,
+    contextUpdatedAt:
+      f.context !== task.context ? new Date().toISOString() : f.contextUpdatedAt,
+  });
+
+  const contextChanged = form.context !== task.context;
+  const contextHint = contextChanged
+    ? 'Edited just now. Saves with the task.'
+    : task.contextUpdatedAt
+      ? `Last updated ${timeAgo(task.contextUpdatedAt)}`
+      : 'Not updated yet';
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.title.trim()) {
@@ -231,7 +368,18 @@ function TaskModal({ task, isNew, onSave, onDelete, onClose }) {
       titleRef.current?.focus();
       return;
     }
-    onSave({ ...form, title: form.title.trim(), dueDate: form.dueDate || null });
+    onSave(finalize(form));
+  };
+
+  // M7: reassign immediately, keeping any other edits made in the form.
+  const handleHandoff = (name) => {
+    if (!name) return;
+    if (!form.title.trim()) {
+      setError('Give the task a title.');
+      titleRef.current?.focus();
+      return;
+    }
+    onHandoff(finalize({ ...form, assignee: name }));
   };
 
   const handleDelete = () => {
@@ -318,6 +466,63 @@ function TaskModal({ task, isNew, onSave, onDelete, onClose }) {
             </Field>
           </div>
 
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <label htmlFor="task-context" className="text-xs font-medium text-text-muted">
+                Context
+              </label>
+              <button
+                type="button"
+                onClick={() => onCopy(form)}
+                className="rounded border border-stone-300 px-2 py-1 text-xs font-medium text-brand-primary hover:bg-stone-100"
+              >
+                Copy Context
+              </button>
+            </div>
+            <textarea
+              id="task-context"
+              rows={9}
+              className={`${fieldClass} font-mono text-xs leading-relaxed`}
+              value={form.context}
+              onChange={set('context')}
+            />
+            <p className="mt-1 text-xs text-text-muted">{contextHint}</p>
+          </div>
+
+          <Field label="AI tool (optional)" htmlFor="task-tool">
+            <select
+              id="task-tool"
+              className={fieldClass}
+              value={form.contextTool || ''}
+              onChange={set('contextTool')}
+            >
+              <option value="">None</option>
+              {AI_TOOLS.map((tool) => (
+                <option key={tool} value={tool}>
+                  {tool}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          {!isNew && (
+            <Field label="Hand off to…" htmlFor="task-handoff">
+              <select
+                id="task-handoff"
+                className={fieldClass}
+                value=""
+                onChange={(e) => handleHandoff(e.target.value)}
+              >
+                <option value="">Choose a teammate…</option>
+                {TEAM.filter((n) => n !== form.assignee).map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+
           <p className="font-mono text-xs text-text-muted">Created {form.createdDate}</p>
         </div>
 
@@ -354,25 +559,54 @@ function TaskModal({ task, isNew, onSave, onDelete, onClose }) {
   );
 }
 
-function TaskCard({ task, onOpen }) {
+function TaskCard({ task, today, flash, onOpen, onCopy }) {
   const t = TYPE_STYLES[task.type];
+  const due = dueInfo(task, today);
+  const done = due.state === 'neutral';
 
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(task.id)}
-      className={`w-full rounded-md border border-stone-200 border-l-4 ${t.stripe} bg-surface-card p-3 text-left transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-primary/40`}
+    <div
+      className={`rounded-md border border-stone-200 border-l-4 ${t.stripe} ${DUE_BG[due.state]} transition-shadow focus-within:ring-2 focus-within:ring-brand-primary/40 hover:shadow-md ${
+        flash ? 'ring-2 ring-brand-accent' : ''
+      }`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-sm font-medium text-text-primary">{task.title}</h3>
-        <TypeBadge type={task.type} />
+      <button
+        type="button"
+        onClick={() => onOpen(task.id)}
+        className="block w-full p-3 pb-2 text-left focus:outline-none"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <h3 className={`text-sm font-medium ${done ? 'text-text-muted' : 'text-text-primary'}`}>
+            {task.title}
+          </h3>
+          <TypeBadge type={task.type} />
+        </div>
+
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2">
+            <Avatar name={task.assignee} muted={done} />
+            <span className="text-xs text-text-muted">{task.assignee}</span>
+          </span>
+          {due.label && (
+            <span className="font-mono text-xs text-text-primary/70">{due.label}</span>
+          )}
+        </div>
+      </button>
+
+      <div className="px-3 pb-3">
+        <button
+          type="button"
+          onClick={() => onCopy(task)}
+          className="rounded border border-stone-300 bg-white/70 px-2 py-1 text-xs font-medium text-brand-primary hover:bg-white"
+        >
+          Copy Context
+        </button>
       </div>
-      <p className="mt-2 text-xs text-text-muted">{task.assignee}</p>
-    </button>
+    </div>
   );
 }
 
-function Column({ stage, tasks, onOpen }) {
+function Column({ stage, tasks, today, flashId, onOpen, onCopy }) {
   return (
     <section className="flex min-h-[24rem] flex-col rounded-lg bg-stone-200/50 p-3">
       <header className="mb-3 flex items-baseline justify-between px-1">
@@ -388,10 +622,33 @@ function Column({ stage, tasks, onOpen }) {
             Nothing here yet. Drop a crumb.
           </p>
         ) : (
-          tasks.map((task) => <TaskCard key={task.id} task={task} onOpen={onOpen} />)
+          tasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              today={today}
+              flash={task.id === flashId}
+              onOpen={onOpen}
+              onCopy={onCopy}
+            />
+          ))
         )}
       </div>
     </section>
+  );
+}
+
+function Toast({ toast }) {
+  if (!toast) return null;
+  return (
+    <div
+      role="status"
+      className={`fixed bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-md bg-text-primary px-4 py-2 text-sm text-white shadow-lg transition-opacity duration-200 ${
+        toast.show ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      {toast.message}
+    </div>
   );
 }
 
@@ -399,11 +656,28 @@ export default function App() {
   const [tasks, setTasks] = useLocalStorage('breadcrumb.tasks', SEED_TASKS);
   // null = closed, 'new' = adding, otherwise the id of the task being edited.
   const [openId, setOpenId] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [flashId, setFlashId] = useState(null);
+  const [today, setToday] = useState(todayISO());
+
+  // M8: re-check the date every minute so colors update by themselves.
+  useEffect(() => {
+    const id = setInterval(() => setToday(todayISO()), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   const isNew = openId === 'new';
   const activeTask = isNew ? blankTask() : tasks.find((t) => t.id === openId);
 
   const closeModal = () => setOpenId(null);
+
+  // Toast with a 200 ms fade (DESIGN.md §7).
+  const showToast = (message) => {
+    setToast({ message, show: false });
+    requestAnimationFrame(() => setToast({ message, show: true }));
+    setTimeout(() => setToast((t) => t && { ...t, show: false }), 2500);
+    setTimeout(() => setToast(null), 2750);
+  };
 
   const saveTask = (task) => {
     setTasks((prev) =>
@@ -417,6 +691,20 @@ export default function App() {
   const deleteTask = (id) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
     closeModal();
+  };
+
+  // M10: copy the briefing and confirm with a toast.
+  const copyContext = async (task) => {
+    const ok = await copyText(buildPromptContext(task));
+    showToast(ok ? 'Copied. Now paste it into the AI.' : "Couldn't copy. Select the text and copy it by hand.");
+  };
+
+  // M7: save the task with its new owner, then acknowledge it visually.
+  const handoffTask = (task) => {
+    saveTask(task);
+    showToast(`Handed off to ${task.assignee}. They've got it.`);
+    setFlashId(task.id);
+    setTimeout(() => setFlashId(null), 2000);
   };
 
   return (
@@ -438,7 +726,10 @@ export default function App() {
             key={stage.id}
             stage={stage}
             tasks={tasks.filter((t) => t.status === stage.id)}
+            today={today}
+            flashId={flashId}
             onOpen={setOpenId}
+            onCopy={copyContext}
           />
         ))}
       </main>
@@ -451,9 +742,13 @@ export default function App() {
           isNew={isNew}
           onSave={saveTask}
           onDelete={deleteTask}
+          onHandoff={handoffTask}
+          onCopy={copyContext}
           onClose={closeModal}
         />
       )}
+
+      <Toast toast={toast} />
     </div>
   );
 }
