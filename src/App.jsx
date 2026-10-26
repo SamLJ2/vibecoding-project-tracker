@@ -169,6 +169,52 @@ async function copyText(text) {
   }
 }
 
+// M12: a soft two-note chime (no audio files needed).
+let audioCtx = null;
+
+// One shared audio context. Browsers only let it run after the person has
+// interacted with the page, so App unlocks it on the first click or touch.
+function getAudioCtx() {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  if (!audioCtx) audioCtx = new Ctx();
+  return audioCtx;
+}
+
+function unlockAudio() {
+  const ctx = getAudioCtx();
+  if (ctx && ctx.state === 'suspended') ctx.resume();
+}
+
+function playChime() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const play = () => {
+      const now = ctx.currentTime;
+      [523.25, 783.99].forEach((freq, i) => {
+        const start = now + i * 0.14;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.4, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.5);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.55);
+      });
+    };
+    console.log('[chime] audio state:', ctx.state);
+    if (ctx.state === 'suspended') ctx.resume().then(play);
+    else play();
+  } catch (err) {
+    console.warn('Chime blocked:', err);
+  }
+}
+
 const AI_TOOLS = ['Claude', 'ChatGPT', 'Cursor', 'Lovable', 'Replit', 'Other'];
 
 function Wordmark() {
@@ -559,14 +605,21 @@ function TaskModal({ task, isNew, onSave, onDelete, onHandoff, onCopy, onClose }
   );
 }
 
-function TaskCard({ task, today, flash, onOpen, onCopy }) {
+function TaskCard({ task, today, flash, dragging, onDragStart, onDragEnd, onOpen, onCopy }) {
   const t = TYPE_STYLES[task.type];
   const due = dueInfo(task, today);
   const done = due.state === 'neutral';
 
   return (
     <div
-      className={`rounded-md border border-stone-200 border-l-4 ${t.stripe} ${DUE_BG[due.state]} transition-shadow focus-within:ring-2 focus-within:ring-brand-primary/40 hover:shadow-md ${
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', task.id);
+        e.dataTransfer.effectAllowed = 'move';
+        onDragStart(task.id);
+      }}
+      onDragEnd={onDragEnd}
+      className={`cursor-grab active:cursor-grabbing ${dragging ? 'opacity-40' : ''} rounded-md border border-stone-200 border-l-4 ${t.stripe} ${DUE_BG[due.state]} transition-shadow focus-within:ring-2 focus-within:ring-brand-primary/40 hover:shadow-md ${
         flash ? 'ring-2 ring-brand-accent' : ''
       }`}
     >
@@ -606,9 +659,30 @@ function TaskCard({ task, today, flash, onOpen, onCopy }) {
   );
 }
 
-function Column({ stage, tasks, today, flashId, onOpen, onCopy }) {
+function Column({ stage, tasks, today, flashId, draggingId, onDragStart, onDragEnd, onMove, onOpen, onCopy }) {
+  const [over, setOver] = useState(false);
+
   return (
-    <section className="flex min-h-[24rem] flex-col rounded-lg bg-stone-200/50 p-3">
+    <section
+      onDragOver={(e) => {
+        if (!draggingId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setOver(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setOver(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        onMove(e.dataTransfer.getData('text/plain'), stage.id);
+        onDragEnd();
+      }}
+      className={`flex min-h-[24rem] flex-col rounded-lg p-3 transition-colors ${
+        over ? 'bg-brand-accent/20 ring-2 ring-brand-accent' : 'bg-stone-200/50'
+      }`}
+    >
       <header className="mb-3 flex items-baseline justify-between px-1">
         <h2 className="text-base font-semibold uppercase text-text-primary">
           {stage.label}
@@ -629,6 +703,9 @@ function Column({ stage, tasks, today, flashId, onOpen, onCopy }) {
               today={today}
               flash={task.id === flashId}
               onOpen={onOpen}
+              dragging={task.id === draggingId}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
               onCopy={onCopy}
             />
           ))
@@ -728,12 +805,24 @@ function Toast({ toast }) {
 
 export default function App() {
   const [tasks, setTasks] = useLocalStorage('breadcrumb.tasks', SEED_TASKS);
+  const [draggingId, setDraggingId] = useState(null);
+  const [soundOn, setSoundOn] = useLocalStorage('breadcrumb.sound', true);
   const [anchors, setAnchors] = useLocalStorage('breadcrumb.anchors', ANCHOR_DEFAULTS);
   // null = closed, 'new' = adding, otherwise the id of the task being edited.
   const [openId, setOpenId] = useState(null);
   const [toast, setToast] = useState(null);
   const [flashId, setFlashId] = useState(null);
   const [today, setToday] = useState(todayISO());
+
+  // M12: unlock audio on the first interaction so the chime can play later.
+  useEffect(() => {
+    window.addEventListener('pointerdown', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+  }, []);
 
   // M8: re-check the date every minute so colors update by themselves.
   useEffect(() => {
@@ -771,6 +860,20 @@ export default function App() {
     closeModal();
   };
 
+  // M12: drag a card to another column to change its status.
+  const moveTask = (id, status) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task || task.status === status) return;
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+    setFlashId(id);
+    setTimeout(() => setFlashId(null), 1200);
+    if (status === 'done') {
+      console.log('[chime] moved to Done, sound on:', soundOn);
+      if (soundOn) playChime();
+      showToast('Done. One less crumb to follow.');
+    }
+  };
+
   // M10: copy the briefing and confirm with a toast.
   const copyContext = async (task) => {
     const ok = await copyText(buildPromptContext(task));
@@ -789,6 +892,15 @@ export default function App() {
     <div className="min-h-screen bg-surface-page">
       <header className="flex items-center justify-between bg-surface-card px-6 py-4 shadow-[0_1px_0_0_rgb(231,229,228)]">
         <Wordmark />
+        <div className="flex items-center gap-3">
+        <button
+          type="button"
+          aria-pressed={soundOn}
+          onClick={() => setSoundOn(!soundOn)}
+          className="rounded-md px-3 py-2 text-sm font-medium text-text-muted hover:bg-stone-100"
+        >
+          Sound: {soundOn ? 'on' : 'off'}
+        </button>
         <button
           type="button"
           onClick={() => setOpenId('new')}
@@ -796,6 +908,7 @@ export default function App() {
         >
           + Task
         </button>
+        </div>
       </header>
 
       <AnchorBoard anchors={anchors} onChange={setAnchorUrl} />
@@ -808,6 +921,10 @@ export default function App() {
             tasks={tasks.filter((t) => t.status === stage.id)}
             today={today}
             flashId={flashId}
+            draggingId={draggingId}
+            onDragStart={setDraggingId}
+            onDragEnd={() => setDraggingId(null)}
+            onMove={moveTask}
             onOpen={setOpenId}
             onCopy={copyContext}
           />
