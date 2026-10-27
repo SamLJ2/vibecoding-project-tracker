@@ -249,7 +249,7 @@ function blankTask() {
 }
 
 const fieldClass =
-  'w-full rounded-md border border-stone-300 bg-surface-card px-3 py-2 text-sm text-text-primary focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30';
+  'w-full rounded-md border border-stone-300 bg-surface-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30';
 
 function Field({ label, htmlFor, children }) {
   return (
@@ -268,14 +268,14 @@ const TYPE_STYLES = {
     label: 'Feature',
     stripe: 'border-l-type-feature',
     top: 'border-t-type-feature',
-    text: 'text-type-feature',
+    text: 'text-type-feature-text',
     border: 'border-type-feature',
   },
   bug: {
     label: 'Bug',
     stripe: 'border-l-type-bug',
     top: 'border-t-type-bug',
-    text: 'text-type-bug',
+    text: 'text-type-bug-text',
     border: 'border-type-bug',
   },
 };
@@ -338,6 +338,7 @@ function initials(name) {
 function Avatar({ name, muted = false }) {
   return (
     <span
+      aria-hidden="true"
       title={name}
       className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${
         muted ? 'bg-text-muted' : 'bg-brand-primary'
@@ -377,17 +378,23 @@ const DUE_BG = {
 
 function TaskModal({ task, isNew, onSave, onDelete, onHandoff, onCopy, onClose }) {
   const [form, setForm] = useState(task);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({ title: '', description: '' });
   const titleRef = useRef(null);
+  const descRef = useRef(null);
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
-  // Focus the title on open; close on Esc.
+  // Focus the title on open, close on Esc, and give focus back to whatever
+  // opened the modal when it closes (keyboard and screen reader users).
   useEffect(() => {
+    const opener = document.activeElement;
     titleRef.current?.focus();
     const onKey = (e) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      if (opener && document.body.contains(opener)) opener.focus();
+    };
   }, [onClose]);
 
   // Clean the form and stamp contextUpdatedAt when the Context text changed.
@@ -397,7 +404,7 @@ function TaskModal({ task, isNew, onSave, onDelete, onHandoff, onCopy, onClose }
     dueDate: f.dueDate || null,
     contextTool: f.contextTool || null,
     contextUpdatedAt:
-      f.context !== task.context ? new Date().toISOString() : f.contextUpdatedAt,
+      isNew || f.context !== task.context ? new Date().toISOString() : f.contextUpdatedAt,
   });
 
   const contextChanged = form.context !== task.context;
@@ -407,24 +414,28 @@ function TaskModal({ task, isNew, onSave, onDelete, onHandoff, onCopy, onClose }
       ? `Last updated ${timeAgo(task.contextUpdatedAt)}`
       : 'Not updated yet';
 
+  // Title and description are both required.
+  const validate = () => {
+    const next = {
+      title: form.title.trim() ? '' : 'Give the task a title.',
+      description: form.description.trim() ? '' : 'Add a short description.',
+    };
+    setErrors(next);
+    if (next.title) titleRef.current?.focus();
+    else if (next.description) descRef.current?.focus();
+    return !next.title && !next.description;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.title.trim()) {
-      setError('Give the task a title.');
-      titleRef.current?.focus();
-      return;
-    }
+    if (!validate()) return;
     onSave(finalize(form));
   };
 
   // M7: reassign immediately, keeping any other edits made in the form.
   const handleHandoff = (name) => {
     if (!name) return;
-    if (!form.title.trim()) {
-      setError('Give the task a title.');
-      titleRef.current?.focus();
-      return;
-    }
+    if (!validate()) return;
     onHandoff(finalize({ ...form, assignee: name }));
   };
 
@@ -458,22 +469,41 @@ function TaskModal({ task, isNew, onSave, onDelete, onHandoff, onCopy, onClose }
               ref={titleRef}
               className={fieldClass}
               value={form.title}
+              aria-required="true"
+              aria-invalid={Boolean(errors.title)}
+              aria-describedby={errors.title ? 'task-title-error' : undefined}
               onChange={(e) => {
-                setError('');
+                setErrors({ ...errors, title: '' });
                 set('title')(e);
               }}
             />
-            {error && <p className="mt-1 text-xs text-type-bug">{error}</p>}
+            {errors.title && (
+              <p id="task-title-error" role="alert" className="mt-1 text-xs text-type-bug-text">
+                {errors.title}
+              </p>
+            )}
           </Field>
 
           <Field label="Description" htmlFor="task-description">
             <textarea
               id="task-description"
+              ref={descRef}
               rows={3}
               className={fieldClass}
               value={form.description}
-              onChange={set('description')}
+              aria-required="true"
+              aria-invalid={Boolean(errors.description)}
+              aria-describedby={errors.description ? 'task-description-error' : undefined}
+              onChange={(e) => {
+                setErrors({ ...errors, description: '' });
+                set('description')(e);
+              }}
             />
+            {errors.description && (
+              <p id="task-description-error" role="alert" className="mt-1 text-xs text-type-bug-text">
+                {errors.description}
+              </p>
+            )}
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
@@ -579,7 +609,7 @@ function TaskModal({ task, isNew, onSave, onDelete, onHandoff, onCopy, onClose }
             <button
               type="button"
               onClick={handleDelete}
-              className="rounded-md px-3 py-2 text-sm font-medium text-type-bug hover:bg-type-bug/10"
+              className="rounded-md px-3 py-2 text-sm font-medium text-type-bug-text hover:bg-type-bug/10"
             >
               Delete task
             </button>
@@ -629,7 +659,7 @@ function TaskCard({ task, today, flash, dragging, onDragStart, onDragEnd, onOpen
         className="block w-full p-3 pb-2 text-left focus:outline-none"
       >
         <div className="flex items-start justify-between gap-2">
-          <h3 className={`text-sm font-medium ${done ? 'text-text-muted' : 'text-text-primary'}`}>
+          <h3 className={`min-w-0 break-words text-sm font-medium ${done ? 'text-text-muted' : 'text-text-primary'}`}>
             {task.title}
           </h3>
           <TypeBadge type={task.type} />
@@ -641,7 +671,7 @@ function TaskCard({ task, today, flash, dragging, onDragStart, onDragEnd, onOpen
             <span className="text-xs text-text-muted">{task.assignee}</span>
           </span>
           {due.label && (
-            <span className="font-mono text-xs text-text-primary/70">{due.label}</span>
+            <span className="font-mono text-xs text-text-primary">{due.label}</span>
           )}
         </div>
       </button>
@@ -650,6 +680,7 @@ function TaskCard({ task, today, flash, dragging, onDragStart, onDragEnd, onOpen
         <button
           type="button"
           onClick={() => onCopy(task)}
+          aria-label={`Copy context for ${task.title}`}
           className="rounded border border-stone-300 bg-white/70 px-2 py-1 text-xs font-medium text-brand-primary hover:bg-white"
         >
           Copy Context

@@ -15,13 +15,15 @@ export default {
         },
         text: {
           primary: '#1C1B29',
-          muted: '#6B6880',
+          muted: '#55516B',
         },
         // Task type (M6 tag-style)
         type: {
-          feature: '#0E9F7E',
-          bug: '#D9455F',
-        },
+  	feature: '#0E9F7E',
+  	bug: '#D9455F',
+  	'feature-text': '#0A7A61',
+  	'bug-text': '#BE2F4A',
+	},
         // Due-date states (M8 due-tint)
         due: {
           safe: '#DCE8F7',
