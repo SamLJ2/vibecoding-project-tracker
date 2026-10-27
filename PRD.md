@@ -99,7 +99,9 @@ Fill these in before tagging `prd-done`:
 | Teammate B | `<TODO>` | `<TODO>` |
 | Teammate C | `<TODO>` | `<TODO>` |
 
-These three names become the **only** allowed values for `Task.assignee`. No auth — just a dropdown.
+These three names become the **only** allowed values for `Task.assignee`. 
+Task assignment uses a dropdown and is separate from the prototype login.
+
 
 ## 9. Milestone ownership
 
@@ -149,7 +151,8 @@ Fill in:
 
 ## 12. Out of scope (do not build)
 
-- Authentication / accounts.
+
+- Real user accounts and secure authentication. The current login is only a front-end prototype.
 - Real GitHub integration.
 - A real backend / shared database.
 - Mobile responsive — desktop only is fine.
@@ -167,43 +170,67 @@ The hackathon is "done" when all 13 milestone tags are pushed to your repo and v
 ## 14. Requirements 
 
 ### functional Requirements
-- Users can add, edit and delete tasks.
-- Users can move tasks between the four Kanban columns.
-- Users can assign tasks to team members.
-- Feature and bug tasks use different colours.
-- Overdue tasks are highlighted in red.
-- Users can save AI prompt context to each task.
-- Users can copy task details and prompt context as Markdown.
-- Users can add links to the four project deliverables.
-- Tasks and deliverable links are saved in localStorage.
-- Required task fields cannot be left empty.
 
-### Non-Functional Requirements 
-- Text must be readable against the background.
-- Buttons must have clear labels and visible hover states.
-- The interface must use consistent colours, fonts and spacing.
-- The board must load without errors in modern desktop browsers.
-- Changes must appear promptly after user interactions.
-- Saved tasks must remain after refreshing the page.
-- The layout must keep task titles and details easy to read.
-- The application must use React, Vite and Tailwind CSS.
-- Task data must remain in browser localStorage.
-- The application must build and deploy successfully on Vercel.
+- (F1, MVP) Users can add, edit and delete tasks.
+- (F2, MVP) Users can move tasks between the four Kanban columns.
+- (F3, MVP) Users can assign tasks to team members.
+- (F4, MVP) Feature and bug tasks use different colours.
+- (F5, Non-MVP) Overdue tasks are highlighted in red.
+- (F6, MVP) Users can save AI prompt context to each task.
+- (F7, MVP) Users can copy task details and prompt context as Markdown.
+- (F8, MVP) Users can add links to the four project deliverables.
+- (F9, MVP) Tasks and deliverable links are saved in localStorage.
+- (F10, MVP) Required task fields cannot be left empty.
+- (F11, Non-MVP) Users can log in and log out using the prototype login system.
+- (F12, Non-MVP) Users can show or hide their password when logging in.
+- (F13, Non-MVP) Incorrect login details display an error message.
+- (F14, Non-MVP) Users can access a read-only demo without logging in.
+- (F15, Non-MVP) Demo users can view example tasks and links but cannot modify them.
+- (F16, Non-MVP) Users can search tasks by title, description or assignee.
+- (F17, Non-MVP) Users can drag and drop tasks between Kanban columns.
+- (F18, Non-MVP) Users can switch between light and dark mode.
+- (F19, Non-MVP) Users can enable or disable completion sounds.
+- (F20, Non-MVP) A sound plays when a task is dragged into the Done column, if enabled.
+- (F21, Non-MVP) Users receive confirmation messages after actions such as copying task context, handing off tasks and completing tasks.
+- (F22, Non-MVP) Users can see task counts and empty-state messages in each column.
+- (F23, Non-MVP) Users must confirm before deleting a task.
+- (F24, Non-MVP) Deliverable links automatically receive https:// when needed.
+
+### Non-Functional Requirements
+
+- (NF1, MVP) Text must be readable against the background.
+- (NF2, MVP) Buttons must have clear labels and visible hover states.
+- (NF3, MVP) The interface must use consistent colours, fonts and spacing.
+- (NF4, MVP) The board must load without errors in modern desktop browsers.
+- (NF5, MVP) Changes must appear promptly after user interactions.
+- (NF6, MVP) Saved tasks must remain after refreshing the page.
+- (NF7, MVP) The layout must keep task titles and details easy to read.
+- (NF8, MVP) The application must use React, Vite and Tailwind CSS.
+- (NF9, MVP) Task data must remain in browser localStorage.
+- (NF10, MVP) The application must build and deploy successfully on Vercel.
+- (NF11, Non-MVP) Both light and dark modes must keep text readable.
+- (NF12, Non-MVP) The selected theme and sound settings must remain after refreshing the page.
+- (NF13, Non-MVP) The demo must be accessible without registration.
+- (NF14, MVP) Form inputs and buttons must have clear labels and support keyboard navigation.
+- (NF15, Non-MVP) The login screen must provide clear feedback when incorrect details are entered.
 
 ## 15. Data Requirements
-- Each task must have a unique ID.
-- Each task must store a title and description.
-- Each task must have a type: Feature or Bug.
-- Each task must have a status: To Do, In Progress, Review, or Done.
-- Each task must store an assignee.
-- Each task must store a creation date and an optional due date.
-- Each task must support optional AI prompt context.
-- Each task must store the selected AI tool when provided.
-- The system must store four deliverable links: Presentation, Demo, Report, and Documentation.
-- Task data and deliverable links must be stored in localStorage and restored when the page reloads.
-- Each task's prompt context must record its last-updated timestamp when saved.
-- Missing optional values must be stored consistently as null or an empty value, according to the defined data model.
 
+- (D1, MVP) Each task must have a unique ID.
+- (D2, MVP) Each task must store a title and description.
+- (D3, MVP) Each task must have a type: Feature or Bug.
+- (D4, MVP) Each task must have a status: To Do, In Progress, Review, or Done.
+- (D5, MVP) Each task must store an assignee.
+- (D6, MVP) Each task must store a creation date and an optional due date.
+- (D7, MVP) Each task must support optional AI prompt context.
+- (D8, MVP) Each task must store the selected AI tool when provided.
+- (D9, MVP) The system must store four deliverable links: Presentation, Demo, Report, and Documentation.
+- (D10, MVP) Task data and deliverable links must be stored in localStorage and restored when the page reloads.
+- (D11, Non-MVP) Each task's prompt context must record its last-updated timestamp when saved.
+- (D12, MVP) Missing optional values must be stored consistently as null or an empty value, according to the defined data model.
+- (D13, Non-MVP) The system must store the current login session or demo mode in localStorage so the session can be restored after refreshing. This data comes from the user's login or demo selection.
+- (D14, Non-MVP) The system must store the user's light or dark mode preference in localStorage so the selected theme is remembered. This data comes from the theme toggle.
+- (D15, Non-MVP) The system must store whether sound is enabled or disabled in localStorage so the setting is remembered. This data comes from the sound toggle.
 ---
 
 *PRD version: hackathon-starter v1 · maintained by Prof. Dr. Ignacio Alvarez*
