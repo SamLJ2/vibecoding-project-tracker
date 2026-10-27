@@ -3,37 +3,43 @@ export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
+      // Every colour reads a CSS variable defined in src/index.css, so the
+      // whole app switches between light and dark.
       colors: {
-        // Brand (DESIGN.md §2)
         brand: {
-          primary: '#3D3A8C',
-          accent: '#F2A93B',
+          primary: 'rgb(var(--brand-primary) / <alpha-value>)',
+          text: 'rgb(var(--brand-text) / <alpha-value>)', // brand colour for TEXT (lighter in dark mode)
+          accent: 'rgb(var(--brand-accent) / <alpha-value>)',
         },
         surface: {
-          page: '#F6F4EF',
-          card: '#FFFFFF',
+          page: 'rgb(var(--surface-page) / <alpha-value>)',
+          card: 'rgb(var(--surface-card) / <alpha-value>)',
         },
         text: {
-          primary: '#1C1B29',
-          muted: '#55516B',
+          primary: 'rgb(var(--text-primary) / <alpha-value>)',
+          muted: 'rgb(var(--text-muted) / <alpha-value>)',
         },
-        // Task type (M6 tag-style)
         type: {
-  	feature: '#0E9F7E',
-  	bug: '#D9455F',
-  	'feature-text': '#0A7A61',
-  	'bug-text': '#BE2F4A',
-	},
-        // Due-date states (M8 due-tint)
+          feature: 'rgb(var(--type-feature) / <alpha-value>)',
+          bug: 'rgb(var(--type-bug) / <alpha-value>)',
+          'feature-text': 'rgb(var(--type-feature-text) / <alpha-value>)',
+          'bug-text': 'rgb(var(--type-bug-text) / <alpha-value>)',
+        },
         due: {
-          safe: '#DCE8F7',
-          warning: '#FCE3A8',
-          overdue: '#F9C5CB',
-          neutral: '#E7E5E4',
+          safe: 'rgb(var(--due-safe) / <alpha-value>)',
+          warning: 'rgb(var(--due-warning) / <alpha-value>)',
+          overdue: 'rgb(var(--due-overdue) / <alpha-value>)',
+          neutral: 'rgb(var(--due-neutral) / <alpha-value>)',
+        },
+        // Greys used for borders, hovers and column backgrounds.
+        stone: {
+          100: 'rgb(var(--stone-100) / <alpha-value>)',
+          200: 'rgb(var(--stone-200) / <alpha-value>)',
+          300: 'rgb(var(--stone-300) / <alpha-value>)',
         },
         // Backwards-compatible aliases from the starter
-        feature: '#0E9F7E',
-        bug: '#D9455F',
+        feature: 'rgb(var(--type-feature) / <alpha-value>)',
+        bug: 'rgb(var(--type-bug) / <alpha-value>)',
       },
       fontFamily: {
         heading: ['"Space Grotesk"', 'system-ui', 'sans-serif'],

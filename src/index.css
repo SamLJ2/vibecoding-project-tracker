@@ -1,3 +1,50 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Colour tokens as RGB triplets, so Tailwind classes like bg-surface-card
+   and bg-due-safe change with the theme. The Light/Dark button sets
+   data-theme on <html>. */
+:root {
+  color-scheme: light;
+  --surface-page: 246 244 239;
+  --surface-card: 255 255 255;
+  --text-primary: 28 27 41;
+  --text-muted: 85 81 107;
+  --brand-primary: 61 58 140;
+  --brand-text: 61 58 140;
+  --brand-accent: 242 169 59;
+  --type-feature: 14 159 126;
+  --type-bug: 217 69 95;
+  --type-feature-text: 10 122 97;
+  --type-bug-text: 190 47 74;
+  --due-safe: 220 232 247;
+  --due-warning: 252 227 168;
+  --due-overdue: 249 197 203;
+  --due-neutral: 231 229 228;
+  --stone-100: 245 245 244;
+  --stone-200: 231 229 228;
+  --stone-300: 214 211 209;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --surface-page: 18 17 28;
+  --surface-card: 30 28 44;
+  --text-primary: 244 243 250;
+  --text-muted: 185 182 206;
+  --brand-primary: 100 96 230;
+  --brand-text: 201 198 255;
+  --brand-accent: 242 169 59;
+  --type-feature: 20 181 143;
+  --type-bug: 240 101 125;
+  --type-feature-text: 95 224 190;
+  --type-bug-text: 255 154 173;
+  --due-safe: 31 47 77;
+  --due-warning: 74 58 18;
+  --due-overdue: 77 31 43;
+  --due-neutral: 43 42 56;
+  --stone-100: 42 40 64;
+  --stone-200: 58 56 82;
+  --stone-300: 74 71 104;
+}

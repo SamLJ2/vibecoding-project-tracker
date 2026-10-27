@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 
 // ---------------------------------------------------------------
 // Locked constants (PRD §5, §7, §8). Do not change without a reason.
@@ -207,7 +207,6 @@ function playChime() {
         osc.stop(start + 0.55);
       });
     };
-    console.log('[chime] audio state:', ctx.state);
     if (ctx.state === 'suspended') ctx.resume().then(play);
     else play();
   } catch (err) {
@@ -219,7 +218,7 @@ const AI_TOOLS = ['Claude', 'ChatGPT', 'Cursor', 'Lovable', 'Replit', 'Other'];
 
 function Wordmark() {
   return (
-    <h1 className="font-heading text-2xl font-semibold text-brand-primary">
+    <h1 className="font-heading text-2xl font-semibold text-brand-text">
       Breadcrumb<span className="text-brand-accent">.</span>
     </h1>
   );
@@ -249,7 +248,7 @@ function blankTask() {
 }
 
 const fieldClass =
-  'w-full rounded-md border border-stone-300 bg-surface-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30';
+  'w-full rounded-md border border-stone-300 bg-surface-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted disabled:cursor-not-allowed disabled:bg-stone-100 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30';
 
 function Field({ label, htmlFor, children }) {
   return (
@@ -317,7 +316,7 @@ function TypeBadge({ type }) {
   const t = TYPE_STYLES[type];
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded border bg-white px-1.5 py-0.5 font-mono text-xs font-medium ${t.border} ${t.text}`}
+      className={`inline-flex shrink-0 items-center gap-1 rounded border bg-surface-card px-1.5 py-0.5 font-mono text-xs font-medium ${t.border} ${t.text}`}
     >
       <TypeIcon type={type} />
       {t.label}
@@ -340,8 +339,8 @@ function Avatar({ name, muted = false }) {
     <span
       aria-hidden="true"
       title={name}
-      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${
-        muted ? 'bg-text-muted' : 'bg-brand-primary'
+      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+        muted ? 'bg-stone-300 text-text-primary' : 'bg-brand-primary text-white'
       }`}
     >
       {initials(name)}
@@ -376,7 +375,7 @@ const DUE_BG = {
   neutral: 'bg-due-neutral',
 };
 
-function TaskModal({ task, isNew, onSave, onDelete, onHandoff, onCopy, onClose }) {
+function TaskModal({ task, isNew, readOnly = false, onSave, onDelete, onHandoff, onCopy, onClose }) {
   const [form, setForm] = useState(task);
   const [errors, setErrors] = useState({ title: '', description: '' });
   const titleRef = useRef(null);
@@ -428,6 +427,7 @@ function TaskModal({ task, isNew, onSave, onDelete, onHandoff, onCopy, onClose }
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (readOnly) return;
     if (!validate()) return;
     onSave(finalize(form));
   };
@@ -452,17 +452,17 @@ function TaskModal({ task, isNew, onSave, onDelete, onHandoff, onCopy, onClose }
         onSubmit={handleSubmit}
         role="dialog"
         aria-modal="true"
-        aria-label={isNew ? 'New task' : 'Edit task'}
+        aria-label={readOnly ? 'Task details (read-only)' : isNew ? 'New task' : 'Edit task'}
         className={`max-h-full w-full max-w-lg overflow-y-auto rounded-lg border-t-4 ${TYPE_STYLES[form.type].top} bg-surface-card p-6 shadow-xl`}
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-heading text-lg font-semibold text-text-primary">
-            {isNew ? 'New task' : 'Edit task'}
+            {readOnly ? 'Task details (view only)' : isNew ? 'New task' : 'Edit task'}
           </h2>
           <TypeBadge type={form.type} />
         </div>
 
-        <div className="space-y-4">
+        <fieldset disabled={readOnly} className="m-0 min-w-0 space-y-4 border-0 p-0">
           <Field label="Title" htmlFor="task-title">
             <input
               id="task-title"
@@ -550,7 +550,7 @@ function TaskModal({ task, isNew, onSave, onDelete, onHandoff, onCopy, onClose }
               <button
                 type="button"
                 onClick={() => onCopy(form)}
-                className="rounded border border-stone-300 px-2 py-1 text-xs font-medium text-brand-primary hover:bg-stone-100"
+                className="rounded border border-stone-300 px-2 py-1 text-xs font-medium text-brand-text hover:bg-stone-100"
               >
                 Copy Context
               </button>
@@ -600,8 +600,20 @@ function TaskModal({ task, isNew, onSave, onDelete, onHandoff, onCopy, onClose }
           )}
 
           <p className="font-mono text-xs text-text-muted">Created {form.createdDate}</p>
-        </div>
+        </fieldset>
 
+        {readOnly ? (
+          <div className="mt-6 flex justify-end">
+            <button
+              type="button"
+              autoFocus
+              onClick={onClose}
+              className="rounded-md bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-primary/90 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+            >
+              Close
+            </button>
+          </div>
+        ) : (
         <div className="mt-6 flex items-center justify-between">
           {isNew ? (
             <span />
@@ -630,26 +642,27 @@ function TaskModal({ task, isNew, onSave, onDelete, onHandoff, onCopy, onClose }
             </button>
           </div>
         </div>
+        )}
       </form>
     </div>
   );
 }
 
-function TaskCard({ task, today, flash, dragging, onDragStart, onDragEnd, onOpen, onCopy }) {
+function TaskCard({ task, today, flash, dragging, readOnly, onDragStart, onDragEnd, onOpen, onCopy }) {
   const t = TYPE_STYLES[task.type];
   const due = dueInfo(task, today);
   const done = due.state === 'neutral';
 
   return (
     <div
-      draggable
+      draggable={!readOnly}
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', task.id);
         e.dataTransfer.effectAllowed = 'move';
         onDragStart(task.id);
       }}
       onDragEnd={onDragEnd}
-      className={`cursor-grab active:cursor-grabbing ${dragging ? 'opacity-40' : ''} rounded-md border border-stone-200 border-l-4 ${t.stripe} ${DUE_BG[due.state]} transition-shadow focus-within:ring-2 focus-within:ring-brand-primary/40 hover:shadow-md ${
+      className={`${readOnly ? '' : 'cursor-grab active:cursor-grabbing'} ${dragging ? 'opacity-40' : ''} rounded-md border border-stone-200 border-l-4 ${t.stripe} ${DUE_BG[due.state]} transition-shadow focus-within:ring-2 focus-within:ring-brand-primary/40 hover:shadow-md ${
         flash ? 'ring-2 ring-brand-accent' : ''
       }`}
     >
@@ -680,8 +693,10 @@ function TaskCard({ task, today, flash, dragging, onDragStart, onDragEnd, onOpen
         <button
           type="button"
           onClick={() => onCopy(task)}
+          disabled={readOnly}
+          title={readOnly ? 'Log in to use this' : undefined}
           aria-label={`Copy context for ${task.title}`}
-          className="rounded border border-stone-300 bg-white/70 px-2 py-1 text-xs font-medium text-brand-primary hover:bg-white"
+          className="rounded border border-stone-300 bg-surface-card/70 px-2 py-1 text-xs font-medium text-brand-text hover:bg-surface-card disabled:cursor-not-allowed disabled:opacity-50"
         >
           Copy Context
         </button>
@@ -690,7 +705,7 @@ function TaskCard({ task, today, flash, dragging, onDragStart, onDragEnd, onOpen
   );
 }
 
-function Column({ stage, tasks, today, flashId, draggingId, onDragStart, onDragEnd, onMove, onOpen, onCopy }) {
+function Column({ stage, tasks, today, flashId, draggingId, readOnly, onDragStart, onDragEnd, onMove, onOpen, onCopy }) {
   const [over, setOver] = useState(false);
 
   return (
@@ -735,6 +750,7 @@ function Column({ stage, tasks, today, flashId, draggingId, onDragStart, onDragE
               flash={task.id === flashId}
               onOpen={onOpen}
               dragging={task.id === draggingId}
+              readOnly={readOnly}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               onCopy={onCopy}
@@ -754,7 +770,7 @@ const ANCHOR_DEFAULTS = [
   { id: 'documentation', label: 'Documentation', url: null },
 ];
 
-function AnchorCard({ anchor, onChange }) {
+function AnchorCard({ anchor, readOnly, onChange }) {
   const filled = Boolean(anchor.url);
 
   // Add https:// when someone pastes a bare domain, so the link actually opens.
@@ -794,13 +810,14 @@ function AnchorCard({ anchor, onChange }) {
           value={anchor.url || ''}
           onChange={(e) => onChange(anchor.id, e.target.value.trim())}
           onBlur={normalize}
+          disabled={readOnly}
         />
         {filled && (
           <a
             href={anchor.url}
             target="_blank"
             rel="noreferrer"
-            className="shrink-0 rounded px-2 py-1 text-xs font-medium text-brand-primary hover:bg-stone-100"
+            className="shrink-0 rounded px-2 py-1 text-xs font-medium text-brand-text hover:bg-stone-100"
           >
             Open
           </a>
@@ -810,13 +827,320 @@ function AnchorCard({ anchor, onChange }) {
   );
 }
 
-function AnchorBoard({ anchors, onChange }) {
+function AnchorBoard({ anchors, readOnly, onChange }) {
   return (
     <section aria-label="Deliverables" className="mx-auto grid max-w-7xl grid-cols-4 gap-4 px-6 pt-6">
       {anchors.map((a) => (
-        <AnchorCard key={a.id} anchor={a} onChange={onChange} />
+        <AnchorCard key={a.id} anchor={a} readOnly={readOnly} onChange={onChange} />
       ))}
     </section>
+  );
+}
+
+// ---------------------------------------------------------------
+// Login + demo mode (front-end only: there is no backend, so this is a
+// prototype of the flow, not real security).
+// ---------------------------------------------------------------
+const LOGIN_USER = 'admin';
+const LOGIN_PASSWORD = 'admin';
+
+function isoOffset(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// Sample board for demo mode. Dates are relative to today so every
+// due-date colour (later, today, overdue, done) is always on show.
+function buildDemoTasks() {
+  const base = {
+    contextTool: null,
+    contextUpdatedAt: null,
+    createdDate: isoOffset(-7),
+  };
+  return [
+    {
+      ...base,
+      id: 'demo-1',
+      title: 'Sketch the board layout',
+      description: 'Rough out the four columns and the anatomy of a card.',
+      type: 'feature',
+      status: 'todo',
+      assignee: TEAM[0],
+      dueDate: isoOffset(5),
+      context: CONTEXT_TEMPLATE,
+    },
+    {
+      ...base,
+      id: 'demo-2',
+      title: 'Fix card overflow on long titles',
+      description: 'Long titles push the assignee badge off the card.',
+      type: 'bug',
+      status: 'in-progress',
+      assignee: TEAM[1],
+      dueDate: isoOffset(-2),
+      contextTool: 'Claude',
+      contextUpdatedAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+      context:
+        '## Background\nTitles with no spaces run past the card edge.\n\n## Constraints\nKeep the badge visible. Tailwind only.\n\n## Tried so far\nTruncating hides too much text.\n\n## Pick up\nLet long words wrap onto the next line.',
+    },
+    {
+      ...base,
+      id: 'demo-3',
+      title: 'Write the context template',
+      description: 'A starter briefing for new tasks: Background, Constraints, Tried so far, Pick up.',
+      type: 'feature',
+      status: 'in-progress',
+      assignee: TEAM[2],
+      dueDate: isoOffset(0),
+      context: CONTEXT_TEMPLATE,
+    },
+    {
+      ...base,
+      id: 'demo-4',
+      title: 'Add the deliverable links',
+      description: 'Four pinned slots for the presentation, demo, report and documentation.',
+      type: 'feature',
+      status: 'review',
+      assignee: TEAM[0],
+      dueDate: isoOffset(2),
+      context: CONTEXT_TEMPLATE,
+    },
+    {
+      ...base,
+      id: 'demo-5',
+      title: 'Copy button fails on some browsers',
+      description: 'Clipboard access is blocked in some browsers, so the button does nothing.',
+      type: 'bug',
+      status: 'todo',
+      assignee: TEAM[1],
+      dueDate: isoOffset(3),
+      context: CONTEXT_TEMPLATE,
+    },
+    {
+      ...base,
+      id: 'demo-6',
+      title: 'Pick the colour palette',
+      description: 'Indigo, amber and warm paper.',
+      type: 'feature',
+      status: 'done',
+      assignee: TEAM[0],
+      dueDate: isoOffset(-3),
+      context: CONTEXT_TEMPLATE,
+    },
+  ];
+}
+
+const DEMO_ANCHORS = [
+  { id: 'presentation', label: 'Presentation', url: 'https://example.com/slides' },
+  { id: 'demo', label: 'Demo', url: 'https://example.com/demo' },
+  { id: 'report', label: 'Report', url: null },
+  { id: 'documentation', label: 'Documentation', url: 'https://example.com/docs' },
+];
+
+function prefersDark() {
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  } catch {
+    return false;
+  }
+}
+
+// Colours for the login screen's light and dark modes. Dark text and
+// control colours were checked for 4.5:1 (text) and 3:1 (borders, buttons).
+const LOGIN_THEMES = {
+  light: {
+    page: 'bg-surface-page',
+    card: 'border-stone-200 bg-surface-card',
+    text: 'text-text-primary',
+    muted: 'text-text-muted',
+    brand: 'text-brand-text',
+    input:
+      'border-[#8C899E] bg-white text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:ring-brand-primary',
+    primary: 'bg-brand-primary text-white hover:bg-brand-primary/90 focus:ring-brand-primary',
+    secondary: 'border-brand-primary text-brand-text hover:bg-stone-100 focus:ring-brand-primary',
+    ghost: 'text-text-muted hover:bg-stone-100 focus:ring-brand-primary',
+    hint: 'bg-stone-100',
+    error: 'text-type-bug-text',
+  },
+  dark: {
+    page: 'bg-[#12111C]',
+    card: 'border-[#3A3852] bg-[#1E1C2C]',
+    text: 'text-[#F4F3FA]',
+    muted: 'text-[#B9B6CE]',
+    brand: 'text-[#C9C6FF]',
+    input:
+      'border-[#8A87A8] bg-[#151422] text-[#F4F3FA] placeholder:text-[#A19EBB] focus:border-brand-accent focus:ring-brand-accent',
+    primary: 'bg-[#6460E6] text-white hover:bg-[#6C68EE] focus:ring-brand-accent',
+    secondary: 'border-[#8A87A8] text-[#E4E2F5] hover:bg-white/10 focus:ring-brand-accent',
+    ghost: 'text-[#B9B6CE] hover:bg-white/10 focus:ring-brand-accent',
+    hint: 'bg-[#151422]',
+    error: 'text-[#FF9AAD]',
+  },
+};
+
+function ThemeIcon({ dark }) {
+  const common = {
+    xmlns: 'http://www.w3.org/2000/svg',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    className: 'h-4 w-4',
+    'aria-hidden': true,
+  };
+  // Shows the mode you will switch TO.
+  return dark ? (
+    <svg {...common}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2" />
+      <path d="M12 20v2" />
+      <path d="m4.93 4.93 1.41 1.41" />
+      <path d="m17.66 17.66 1.41 1.41" />
+      <path d="M2 12h2" />
+      <path d="M20 12h2" />
+      <path d="m6.34 17.66-1.41 1.41" />
+      <path d="m19.07 4.93-1.41 1.41" />
+    </svg>
+  ) : (
+    <svg {...common}>
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  );
+}
+
+function LoginScreen({ dark, onToggleTheme, onLogin, onDemo }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const userRef = useRef(null);
+  const passRef = useRef(null);
+  const t = dark ? LOGIN_THEMES.dark : LOGIN_THEMES.light;
+
+  useEffect(() => {
+    userRef.current?.focus();
+  }, []);
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (username.trim().toLowerCase() === LOGIN_USER && password === LOGIN_PASSWORD) {
+      onLogin(LOGIN_USER);
+      return;
+    }
+    setError("That username or password isn't right. Try again.");
+    setPassword('');
+    passRef.current?.focus();
+  };
+
+  const inputClass = `w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${t.input}`;
+  const buttonBase = 'w-full rounded-md px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2';
+
+  return (
+    <div className={`flex min-h-screen flex-col ${t.page} ${t.text}`}>
+      <div className="flex justify-end p-4">
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+          className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 ${t.ghost}`}
+        >
+          <ThemeIcon dark={dark} />
+          {dark ? 'Light mode' : 'Dark mode'}
+        </button>
+      </div>
+
+      <main className="flex flex-1 items-center justify-center px-4 pb-16">
+        <div className={`w-full max-w-sm rounded-lg border p-8 shadow-sm ${t.card}`}>
+          <h1 className={`font-heading text-3xl font-semibold ${t.brand}`}>
+            Breadcrumb<span className="text-brand-accent">.</span>
+          </h1>
+          <p className={`mt-1 text-sm ${t.muted}`}>Your tasks, and the prompts behind them.</p>
+
+          <form onSubmit={submit} aria-label="Log in" className="mt-6 space-y-4" noValidate>
+            <div>
+              <label htmlFor="login-user" className="mb-1 block text-sm font-medium">
+                Username
+              </label>
+              <input
+                id="login-user"
+                ref={userRef}
+                type="text"
+                autoComplete="username"
+                className={inputClass}
+                value={username}
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'login-error' : undefined}
+                onChange={(e) => {
+                  setError('');
+                  setUsername(e.target.value);
+                }}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="login-pass" className="mb-1 block text-sm font-medium">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="login-pass"
+                  ref={passRef}
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  className={`${inputClass} pr-16`}
+                  value={password}
+                  aria-invalid={Boolean(error)}
+                  aria-describedby={error ? 'login-error' : undefined}
+                  onChange={(e) => {
+                    setError('');
+                    setPassword(e.target.value);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className={`absolute right-1 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 ${t.ghost}`}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <p id="login-error" role="alert" className={`text-sm font-medium ${t.error}`}>
+                {error}
+              </p>
+            )}
+
+            <button type="submit" className={`${buttonBase} ${t.primary}`}>
+              Log in
+            </button>
+          </form>
+
+          <div className={`my-5 flex items-center gap-3 text-xs ${t.muted}`}>
+            <span className="h-px flex-1 bg-current opacity-30" />
+            or
+            <span className="h-px flex-1 bg-current opacity-30" />
+          </div>
+
+          <button type="button" onClick={onDemo} className={`${buttonBase} border ${t.secondary}`}>
+            Show demo
+          </button>
+          <p className={`mt-2 text-center text-xs ${t.muted}`}>
+            A view-only sample board. No login needed.
+          </p>
+
+          <p className={`mt-6 rounded-md px-3 py-2 text-xs ${t.hint} ${t.muted}`}>
+            Prototype login: username <strong>admin</strong>, password <strong>admin</strong>.
+          </p>
+        </div>
+      </main>
+    </div>
   );
 }
 
@@ -825,7 +1149,7 @@ function Toast({ toast }) {
   return (
     <div
       role="status"
-      className={`fixed bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-md bg-text-primary px-4 py-2 text-sm text-white shadow-lg transition-opacity duration-200 ${
+      className={`fixed bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-md bg-text-primary px-4 py-2 text-sm text-surface-page shadow-lg transition-opacity duration-200 ${
         toast.show ? 'opacity-100' : 'opacity-0'
       }`}
     >
@@ -834,11 +1158,16 @@ function Toast({ toast }) {
   );
 }
 
-export default function App() {
-  const [tasks, setTasks] = useLocalStorage('breadcrumb.tasks', SEED_TASKS);
+function Board({ session, dark, onToggleTheme, onLogout }) {
+  const readOnly = session.mode === 'demo';
+  const [storedTasks, setTasks] = useLocalStorage('breadcrumb.tasks', SEED_TASKS);
+  const demoTasks = useMemo(buildDemoTasks, []);
+  const tasks = readOnly ? demoTasks : storedTasks;
+  const [query, setQuery] = useState('');
   const [draggingId, setDraggingId] = useState(null);
   const [soundOn, setSoundOn] = useLocalStorage('breadcrumb.sound', true);
-  const [anchors, setAnchors] = useLocalStorage('breadcrumb.anchors', ANCHOR_DEFAULTS);
+  const [storedAnchors, setAnchors] = useLocalStorage('breadcrumb.anchors', ANCHOR_DEFAULTS);
+  const anchors = readOnly ? DEMO_ANCHORS : storedAnchors;
   // null = closed, 'new' = adding, otherwise the id of the task being edited.
   const [openId, setOpenId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -866,8 +1195,18 @@ export default function App() {
 
   const closeModal = () => setOpenId(null);
 
-  const setAnchorUrl = (id, url) =>
+  const setAnchorUrl = (id, url) => {
+    if (readOnly) return;
     setAnchors((prev) => prev.map((a) => (a.id === id ? { ...a, url: url || null } : a)));
+  };
+
+  // Search filters the cards by title, description or assignee.
+  const q = query.trim().toLowerCase();
+  const visibleTasks = q
+    ? tasks.filter((task) =>
+        [task.title, task.description, task.assignee].some((v) => (v || '').toLowerCase().includes(q))
+      )
+    : tasks;
 
   // Toast with a 200 ms fade (DESIGN.md §7).
   const showToast = (message) => {
@@ -878,6 +1217,7 @@ export default function App() {
   };
 
   const saveTask = (task) => {
+    if (readOnly) return;
     setTasks((prev) =>
       prev.some((t) => t.id === task.id)
         ? prev.map((t) => (t.id === task.id ? task : t))
@@ -887,19 +1227,20 @@ export default function App() {
   };
 
   const deleteTask = (id) => {
+    if (readOnly) return;
     setTasks((prev) => prev.filter((t) => t.id !== id));
     closeModal();
   };
 
   // M12: drag a card to another column to change its status.
   const moveTask = (id, status) => {
+    if (readOnly) return;
     const task = tasks.find((t) => t.id === id);
     if (!task || task.status === status) return;
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
     setFlashId(id);
     setTimeout(() => setFlashId(null), 1200);
     if (status === 'done') {
-      console.log('[chime] moved to Done, sound on:', soundOn);
       if (soundOn) playChime();
       showToast('Done. One less crumb to follow.');
     }
@@ -913,6 +1254,7 @@ export default function App() {
 
   // M7: save the task with its new owner, then acknowledge it visually.
   const handoffTask = (task) => {
+    if (readOnly) return;
     saveTask(task);
     showToast(`Handed off to ${task.assignee}. They've got it.`);
     setFlashId(task.id);
@@ -921,38 +1263,84 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-surface-page">
-      <header className="flex items-center justify-between bg-surface-card px-6 py-4 shadow-[0_1px_0_0_rgb(231,229,228)]">
+      <header className="flex flex-wrap items-center justify-between gap-3 bg-surface-card px-6 py-4 border-b border-stone-200">
         <Wordmark />
-        <div className="flex items-center gap-3">
-        <button
-          type="button"
-          aria-pressed={soundOn}
-          onClick={() => setSoundOn(!soundOn)}
-          className="rounded-md px-3 py-2 text-sm font-medium text-text-muted hover:bg-stone-100"
-        >
-          Sound: {soundOn ? 'on' : 'off'}
-        </button>
-        <button
-          type="button"
-          onClick={() => setOpenId('new')}
-          className="rounded-md bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-primary/90 focus:outline-none focus:ring-2 focus:ring-brand-accent"
-        >
-          + Task
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="w-48">
+            <label htmlFor="task-search" className="sr-only">
+              Search tasks
+            </label>
+            <input
+              id="task-search"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search tasks…"
+              className={fieldClass}
+            />
+          </div>
+          <span className="flex items-center gap-2 text-sm text-text-muted">
+            <Avatar name={readOnly ? 'Demo' : session.name} />
+            {readOnly ? 'Demo (view only)' : `Signed in as ${session.name}`}
+          </span>
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-text-muted hover:bg-stone-100"
+          >
+            <ThemeIcon dark={dark} />
+            {dark ? 'Light mode' : 'Dark mode'}
+          </button>
+          <button
+            type="button"
+            aria-pressed={soundOn}
+            onClick={() => setSoundOn(!soundOn)}
+            className="rounded-md px-3 py-2 text-sm font-medium text-text-muted hover:bg-stone-100"
+          >
+            Sound: {soundOn ? 'on' : 'off'}
+          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => setOpenId('new')}
+              className="rounded-md bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-primary/90 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+            >
+              + Task
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onLogout}
+            className="rounded-md border border-brand-primary px-3 py-2 text-sm font-medium text-brand-text hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          >
+            {readOnly ? 'Exit demo' : 'Log out'}
+          </button>
         </div>
       </header>
 
-      <AnchorBoard anchors={anchors} onChange={setAnchorUrl} />
+      {readOnly && (
+        <div className="bg-due-warning px-6 py-2 text-sm text-text-primary">
+          You&apos;re viewing a read-only demo with sample data.{' '}
+          <button type="button" onClick={onLogout} className="font-semibold underline">
+            Log in
+          </button>{' '}
+          to add and edit your own tasks.
+        </div>
+      )}
+
+      <AnchorBoard anchors={anchors} readOnly={readOnly} onChange={setAnchorUrl} />
 
       <main className="mx-auto grid max-w-7xl grid-cols-4 gap-4 p-6">
         {STAGES.map((stage) => (
           <Column
             key={stage.id}
             stage={stage}
-            tasks={tasks.filter((t) => t.status === stage.id)}
+            tasks={visibleTasks.filter((t) => t.status === stage.id)}
             today={today}
             flashId={flashId}
             draggingId={draggingId}
+            readOnly={readOnly}
             onDragStart={setDraggingId}
             onDragEnd={() => setDraggingId(null)}
             onMove={moveTask}
@@ -968,6 +1356,7 @@ export default function App() {
           key={openId}
           task={activeTask}
           isNew={isNew}
+          readOnly={readOnly}
           onSave={saveTask}
           onDelete={deleteTask}
           onHandoff={handoffTask}
@@ -978,5 +1367,37 @@ export default function App() {
 
       <Toast toast={toast} />
     </div>
+  );
+}
+
+export default function App() {
+  // null = logged out, { mode: 'user', name } or { mode: 'demo' }.
+  const [session, setSession] = useLocalStorage('breadcrumb.session', null);
+  // Light/dark for the whole app. Starts from the computer's setting.
+  const [dark, setDark] = useLocalStorage('breadcrumb.dark', prefersDark());
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  }, [dark]);
+
+  const toggleTheme = () => setDark(!dark);
+
+  if (!session) {
+    return (
+      <LoginScreen
+        dark={dark}
+        onToggleTheme={toggleTheme}
+        onLogin={(name) => setSession({ mode: 'user', name })}
+        onDemo={() => setSession({ mode: 'demo' })}
+      />
+    );
+  }
+  return (
+    <Board
+      session={session}
+      dark={dark}
+      onToggleTheme={toggleTheme}
+      onLogout={() => setSession(null)}
+    />
   );
 }
